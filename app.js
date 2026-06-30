@@ -1,6 +1,5 @@
 const API_BASE = '';
-// If you run behind a different origin, set API_BASE accordingly.
-// e.g. const API_BASE = 'https://your-domain.com';
+const STORAGE_KEY = 'nexora-super-todo.tasks';
 
 const els = {
   addForm: document.getElementById('addForm'),
@@ -40,8 +39,26 @@ let state = {
   filter: 'all',
   query: '',
   sortBy: 'createdDesc',
-  modalTaskId: null
+  modalTaskId: null,
+  useLocalStore: location.hostname.endsWith('github.io')
 };
+
+function uid() {
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+
+function readLocalTasks() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalTasks() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tasks));
+}
 
 function toast(message) {
   els.modalToast.hidden = false;
@@ -74,7 +91,6 @@ function filteredSortedTasks() {
 
   if (state.filter === 'active') tasks = tasks.filter(t => !t.completed);
   if (state.filter === 'completed') tasks = tasks.filter(t => t.completed);
-
   if (q) tasks = tasks.filter(t => (t.title || '').toLowerCase().includes(q));
 
   switch (state.sortBy) {
@@ -133,7 +149,7 @@ function render() {
             ${renderPriorityPill(t.priority)}
           </p>
           <div class="task-meta">
-            <span class="pill">Created: ${new Date(t.createdAt).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'2-digit' })}</span>
+            <span class="pill">Created: ${new Date(t.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })}</span>
             ${t.dueDate ? `<span class="pill">Due: ${fmtDue(t.dueDate) ?? t.dueDate}</span>` : ''}
           </div>
           ${t.notes ? `<div class="task-notes">${escapeHtml(t.notes)}</div>` : ''}
@@ -141,15 +157,13 @@ function render() {
       </div>
       <div class="task-right">
         <div class="icon-row">
-          <button class="icon-btn edit" type="button" aria-label="Edit">✎</button>
-          <button class="icon-btn del" type="button" aria-label="Delete">🗑</button>
+          <button class="icon-btn edit" type="button" aria-label="Edit">Edit</button>
+          <button class="icon-btn del" type="button" aria-label="Delete">Del</button>
         </div>
       </div>
     `;
 
-    const checkBtn = li.querySelector('.check');
-    checkBtn.addEventListener('click', () => toggleComplete(t.id));
-
+    li.querySelector('.check').addEventListener('click', () => toggleComplete(t.id));
     li.querySelector('.edit').addEventListener('click', () => openModal(t.id));
     li.querySelector('.del').addEventListener('click', () => deleteTask(t.id));
 
@@ -167,9 +181,9 @@ function renderPriorityPill(priority) {
 function escapeHtml(str) {
   return String(str)
     .replaceAll('&', '&amp;')
-    .replaceAll('<', '<')
-    .replaceAll('>', '>')
-    .replaceAll('"', '"')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
 
@@ -187,27 +201,51 @@ async function apiFetch(url, options = {}) {
 }
 
 async function loadTasks() {
+  if (state.useLocalStore) {
+    state.tasks = readLocalTasks();
+    render();
+    return;
+  }
+
   try {
     const data = await apiFetch('/api/tasks');
     state.tasks = data.tasks || [];
   } catch (e) {
-    console.error(e);
-    // fallback to empty state
-    state.tasks = [];
+    console.info('API unavailable, using local browser storage.', e);
+    state.useLocalStore = true;
+    state.tasks = readLocalTasks();
   }
   render();
 }
 
 async function addTask(payload) {
-  const { title, notes, dueDate, priority } = payload;
+  const now = new Date().toISOString();
+  const task = {
+    id: uid(),
+    title: payload.title,
+    notes: payload.notes || '',
+    dueDate: payload.dueDate || null,
+    priority: payload.priority || 'normal',
+    completed: false,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  if (state.useLocalStore) return task;
+
   const data = await apiFetch('/api/tasks', {
     method: 'POST',
-    body: JSON.stringify({ title, notes, dueDate, priority })
+    body: JSON.stringify(payload)
   });
   return data.task;
 }
 
 async function updateTask(id, patch) {
+  if (state.useLocalStore) {
+    const task = state.tasks.find(t => t.id === id);
+    return { ...task, ...patch, updatedAt: new Date().toISOString() };
+  }
+
   const data = await apiFetch(`/api/tasks/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(patch)
@@ -216,13 +254,13 @@ async function updateTask(id, patch) {
 }
 
 async function deleteTask(id) {
-  // Optimistic UI
   const prev = state.tasks.slice();
   state.tasks = state.tasks.filter(t => t.id !== id);
+  if (state.useLocalStore) writeLocalTasks();
   render();
 
   try {
-    await apiFetch(`/api/tasks/${id}`, { method: 'DELETE' });
+    if (!state.useLocalStore) await apiFetch(`/api/tasks/${id}`, { method: 'DELETE' });
   } catch (e) {
     state.tasks = prev;
     render();
@@ -239,10 +277,14 @@ async function toggleComplete(id) {
   const nextCompleted = !task.completed;
 
   state.tasks = state.tasks.map(t => t.id === id ? { ...t, completed: nextCompleted } : t);
+  if (state.useLocalStore) writeLocalTasks();
   render();
 
   try {
-    await updateTask(id, { completed: nextCompleted });
+    const updated = await updateTask(id, { completed: nextCompleted });
+    state.tasks = state.tasks.map(t => t.id === id ? updated : t);
+    if (state.useLocalStore) writeLocalTasks();
+    render();
   } catch (e) {
     state.tasks = prev;
     render();
@@ -291,16 +333,14 @@ els.editForm.addEventListener('submit', async (e) => {
   if (!title) return;
 
   const prev = state.tasks.slice();
-
-  state.tasks = state.tasks.map(t => {
-    if (t.id !== id) return t;
-    return { ...t, title, notes, dueDate, priority };
-  });
+  state.tasks = state.tasks.map(t => t.id === id ? { ...t, title, notes, dueDate, priority } : t);
+  if (state.useLocalStore) writeLocalTasks();
   render();
 
   try {
     const updated = await updateTask(id, { title, notes, dueDate, priority });
     state.tasks = state.tasks.map(t => t.id === id ? updated : t);
+    if (state.useLocalStore) writeLocalTasks();
     render();
     closeModal();
   } catch (err) {
@@ -316,7 +356,6 @@ els.deleteBtn.addEventListener('click', async () => {
   closeModal();
 });
 
-// Add
 els.addForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = els.title.value.trim();
@@ -327,11 +366,8 @@ els.addForm.addEventListener('submit', async (e) => {
   if (!title) return;
 
   const prev = state.tasks.slice();
-
-  // optimistic temp task
-  const tempId = 'tmp_' + Math.random().toString(16).slice(2);
   const tempTask = {
-    id: tempId,
+    id: 'tmp_' + uid(),
     title,
     notes,
     dueDate,
@@ -341,13 +377,15 @@ els.addForm.addEventListener('submit', async (e) => {
     updatedAt: new Date().toISOString()
   };
   state.tasks.unshift(tempTask);
+  if (state.useLocalStore) writeLocalTasks();
   render();
 
   els.addForm.reset();
 
   try {
     const created = await addTask({ title, notes, dueDate, priority });
-    state.tasks = state.tasks.map(t => t.id === tempId ? created : t);
+    state.tasks = state.tasks.map(t => t.id === tempTask.id ? created : t);
+    if (state.useLocalStore) writeLocalTasks();
     render();
   } catch (err) {
     state.tasks = prev;
@@ -356,7 +394,6 @@ els.addForm.addEventListener('submit', async (e) => {
   }
 });
 
-// Filters
 els.filterButtons.forEach(btn => {
   btn.addEventListener('click', () => {
     els.filterButtons.forEach(b => {
@@ -387,10 +424,13 @@ els.clearCompleted.addEventListener('click', async () => {
   if (completed.length === 0) return;
 
   state.tasks = state.tasks.filter(t => !t.completed);
+  if (state.useLocalStore) writeLocalTasks();
   render();
 
   try {
-    await Promise.all(completed.map(t => apiFetch(`/api/tasks/${t.id}`, { method: 'DELETE' })));
+    if (!state.useLocalStore) {
+      await Promise.all(completed.map(t => apiFetch(`/api/tasks/${t.id}`, { method: 'DELETE' })));
+    }
   } catch (e) {
     state.tasks = prev;
     render();
@@ -398,14 +438,12 @@ els.clearCompleted.addEventListener('click', async () => {
   }
 });
 
-// Keyboard shortcuts
 window.addEventListener('keydown', (e) => {
   if (e.key === '/' && document.activeElement !== els.search) {
     e.preventDefault();
     els.search.focus();
   }
   if ((e.key === 'n' || e.key === 'N') && !e.metaKey && !e.ctrlKey && !e.altKey) {
-    // avoid if typing in input
     const tag = document.activeElement?.tagName?.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     e.preventDefault();
@@ -415,4 +453,3 @@ window.addEventListener('keydown', (e) => {
 });
 
 loadTasks();
-
