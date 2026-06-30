@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexora Super To-Do</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="bg"></div>
+
+  <main class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">✓</div>
+        <div>
+          <h1>Nexora Super To-Do</h1>
+          <p class="subtitle">Fast, clean, and satisfying. Get things done ✨</p>
+        </div>
+      </div>
+
+      <div class="stats" role="status" aria-live="polite">
+        <div class="stat">
+          <div class="stat-value" id="statTotal">0</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="statActive">0</div>
+          <div class="stat-label">Active</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="statDone">0</div>
+          <div class="stat-label">Done</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="composer" aria-label="Add task">
+      <form id="addForm" class="add-form" autocomplete="off">
+        <div class="row">
+          <label class="field">
+            <span>Task title</span>
+            <input id="title" name="title" type="text" placeholder="e.g., Finish internship report" required maxlength="120" />
+          </label>
+
+          <label class="field">
+            <span>Due date</span>
+            <input id="dueDate" name="dueDate" type="date" />
+          </label>
+
+          <label class="field">
+            <span>Priority</span>
+            <select id="priority" name="priority">
+              <option value="low">Low</option>
+              <option value="normal" selected>Normal</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Notes (optional)</span>
+          <textarea id="notes" name="notes" rows="2" placeholder="Anything helpful..." maxlength="500"></textarea>
+        </label>
+
+        <div class="actions">
+          <button class="btn primary" type="submit">
+            <span class="btn-icon" aria-hidden="true">+</span>
+            Add task
+          </button>
+          <div class="hint">Press <kbd>/</kbd> to focus search. <kbd>N</kbd> to add quickly.</div>
+        </div>
+      </form>
+    </section>
+
+    <section class="controls" aria-label="Filters and search">
+      <div class="segmented" role="tablist" aria-label="Task filter">
+        <button type="button" class="seg is-active" data-filter="all" role="tab" aria-selected="true">All</button>
+        <button type="button" class="seg" data-filter="active" role="tab" aria-selected="false">Active</button>
+        <button type="button" class="seg" data-filter="completed" role="tab" aria-selected="false">Completed</button>
+      </div>
+
+      <div class="search">
+        <input id="search" type="search" placeholder="Search tasks..." />
+        <span class="search-icon" aria-hidden="true">⌕</span>
+      </div>
+
+      <div class="sort">
+        <label class="sr-only" for="sortBy">Sort by</label>
+        <select id="sortBy">
+          <option value="createdDesc" selected>Newest</option>
+          <option value="dueAsc">Due date (earliest)</option>
+          <option value="priorityDesc">Priority (high first)</option>
+        </select>
+      </div>
+
+      <button id="clearCompleted" class="btn ghost" type="button" title="Remove all completed tasks">
+        Clear done
+      </button>
+    </section>
+
+    <section class="list" aria-label="Task list">
+      <div id="empty" class="empty" hidden>
+        <div class="empty-illustration" aria-hidden="true">🗂️</div>
+        <h2>No tasks yet</h2>
+        <p>Add something above to begin.</p>
+      </div>
+
+      <ul id="taskList" class="task-list"></ul>
+    </section>
+
+    <footer class="footer">
+      <span>Built for Nexora • UI/UX focus • Tasks saved via API</span>
+      <span class="sep">•</span>
+      <a class="api-link" href="/api/health" target="_blank" rel="noreferrer">API health</a>
+    </footer>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <h3 id="modalTitle">Edit task</h3>
+        <button class="icon-btn" id="closeModal" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <form id="editForm" class="modal-body" autocomplete="off">
+        <input type="hidden" id="editId" />
+
+        <label class="field">
+          <span>Title</span>
+          <input id="editTitle" type="text" required maxlength="120" />
+        </label>
+
+        <label class="field">
+          <span>Due date</span>
+          <input id="editDueDate" type="date" />
+        </label>
+
+        <label class="field">
+          <span>Priority</span>
+          <select id="editPriority">
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Notes</span>
+          <textarea id="editNotes" rows="3" maxlength="500"></textarea>
+        </label>
+
+        <div class="modal-actions">
+          <button class="btn primary" type="submit">Save changes</button>
+          <button class="btn danger" id="deleteBtn" type="button">Delete</button>
+        </div>
+      </form>
+
+      <div id="modalToast" class="toast" role="status" aria-live="polite" hidden></div>
+    </div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
+
