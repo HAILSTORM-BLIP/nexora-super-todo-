@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nexora Super To-Do</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <div class="bg"></div>
@@ -15,7 +15,7 @@
         <div class="logo" aria-hidden="true">✓</div>
         <div>
           <h1>Nexora Super To-Do</h1>
-          <p class="subtitle">Fast, clean, and satisfying. Get things done ✨</p>
+          <p class="subtitle">Fast, clean, and satisfying. Get things done.</p>
         </div>
       </div>
 
@@ -101,7 +101,7 @@
 
     <section class="list" aria-label="Task list">
       <div id="empty" class="empty" hidden>
-        <div class="empty-illustration" aria-hidden="true">🗂️</div>
+        <div class="empty-illustration" aria-hidden="true">□</div>
         <h2>No tasks yet</h2>
         <p>Add something above to begin.</p>
       </div>
@@ -110,18 +110,15 @@
     </section>
 
     <footer class="footer">
-      <span>Built for Nexora • UI/UX focus • Tasks saved via API</span>
-      <span class="sep">•</span>
-      <a class="api-link" href="/api/health" target="_blank" rel="noreferrer">API health</a>
+      <span>Built for Nexora · UI/UX focus · Tasks saved in this browser on GitHub Pages</span>
     </footer>
   </main>
 
-  <!-- Modal -->
   <div id="modal" class="modal" aria-hidden="true">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-header">
         <h3 id="modalTitle">Edit task</h3>
-        <button class="icon-btn" id="closeModal" type="button" aria-label="Close">✕</button>
+        <button class="icon-btn" id="closeModal" type="button" aria-label="Close">×</button>
       </div>
 
       <form id="editForm" class="modal-body" autocomplete="off">
@@ -161,7 +158,6 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
-
